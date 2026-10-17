@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Bugsnax Detective</title>
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<style>
+:root{--bg:#2a1a4a;--card:#3a2763;--ink:#fff4e6;--mut:#c9b8ee;--red:#ff5a6e;--yel:#ffc84a;--grn:#6fe0b4;--bd:#5a4390}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.4 system-ui,sans-serif;padding:16px;padding-top:max(16px,env(safe-area-inset-top));padding-bottom:max(16px,env(safe-area-inset-bottom));min-height:100vh}
+h1,h2,h3{font-family:'Baloo 2',system-ui,sans-serif;margin:.2em 0;line-height:1.1}
+h1{font-size:2.6rem;font-weight:800;color:var(--yel)}
+main{max-width:560px;margin:auto}
+.c{background:var(--card);border:2px solid var(--bd);border-radius:14px;padding:14px;margin:12px 0}
+button,input,textarea{font:inherit;color:inherit}
+input,textarea{width:100%;background:#241440;border:2px solid var(--bd);border-radius:10px;padding:10px;margin:6px 0}
+button{background:var(--red);border:0;border-radius:10px;padding:12px 16px;font-weight:700;cursor:pointer;color:#2a0a14}
+button.g{background:transparent;border:2px solid var(--bd);color:var(--ink)}
+button.b{width:100%;margin:6px 0}
+button:focus-visible,input:focus-visible,textarea:focus-visible{outline:3px solid var(--yel)}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}
+.chip{padding:7px 11px;border-radius:99px;border:2px solid var(--bd);background:transparent;color:var(--ink);font-weight:600;font-size:.9rem}
+.chip.on{background:var(--yel);border-color:var(--yel);color:#2a1a00}
+.list{max-height:200px;overflow:auto;border:2px solid var(--bd);border-radius:10px;padding:6px;background:#241440}
+.code{font:800 3rem 'Baloo 2',system-ui;letter-spacing:.2em;color:var(--yel);text-align:center}
+.hint{border-left:5px solid var(--yel);padding:6px 10px;margin:6px 0;background:#241440;border-radius:6px}
+.pin{position:sticky;top:0;z-index:5;padding-top:env(safe-area-inset-top)}
+.pin .c{max-height:34vh;overflow:auto;margin-top:0;border-color:var(--yel)}
+.ok{color:var(--grn)}.no{color:var(--red)}.nx{color:var(--yel)}
+.m{color:var(--mut);font-size:.9rem}
+.row{display:flex;gap:6px;margin-top:6px}.row>*{flex:1}
+</style>
+</head>
+<body>
+<main id="app"></main>
+<script>
+// Lista dos 100 Bugsnax (edite aqui se quiser trocar algum nome)
+const N="Strabby,Pinkle,Rootle,White Rootle,Green Lollive,Inchwrap,Sandopede,Sub Sandopede,Ruby Peelbug,Caramel Poptick,Twisty Snakpod,Wee Mewon,Mama Mewon,Bunger,Fryder,Shishkabug,Sweetiefly,White Strabby,Dr. Sodie,Weenyworm,Cobhopper,Crispy Snakpod,Kweeble,Crapple,Pineantula,Orange Peelbug,Razzby,Green Grapeskeeto,Snaquiri,Tropicabug,Lovely Sweetiefly,Baja Tacroach,Waffstackarak,Grumpy Snakpod,Green Crapple,Grapeskeeto,Golden Kweeble,Greater Cocomite,Lesser Cocomite,La Sodieux,Noodler,Paletoss,Paletoss Grande,Red Banopper,Flamin' Cheepoof,Sherbie,Fruity Snakpod,Minimaki,Megamaki,BBQ Bunger,Sweet Fryder,Ribblepede,Poptick,Spuddy,Scorpenyo,Shy Weenyworm,Cheepoof,White Cheepoof,Crystal Sweetiefly,Green Peelbug,Puffy Snakpod,Tacroach,Preying Picantis,Black Lollive,Loaded Spuddy,Buffalocust,Eggler,Flapjackarak,Scorpepper,Incherrito,Black Razzby,Sodie D,Cheezer,Meaty Snakpod,Bombino,Mothza Supreme,Kwookie,Charmallow,Cinnasnail,Hunnabee,Sprinklepede,Yellow Peelbug,Bopsicle,Big Bopsicle,Rainbow Sweetiefly,Nutty Snakpod,Banopper,Scoopy,Cheery,Scoopy Banoopy,Aggroll,Chippie,Chillynilly,Flutterjam,Mt. Sodie,Stewdler,Melty Snakpod,Instabug,Baby Cakelegs,Daddy Cakelegs".split(",");
+const A=["Roubou a comida","Sabotou a ponte","Escondeu um tesouro","Derrubou as armadilhas","Fugiu da ilha","Bagunçou o acampamento","Pregou uma peça nos moradores","Roubou o diário","Trouxe outros Bugsnax para a ilha","Mordeu um morador"];
+const $=s=>document.querySelector(s),app=$('#app');
+const e=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const nz=s=>(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();
+const gt=(g,raw)=>g.b?(raw?g.b+': '+g.a:'<b>'+e(g.b)+'</b>: '+e(g.a)):(raw?g.a:e(g.a));
+const fresh=()=>({culprit:'',action:'',extras:[],hints:[],guesses:[],winner:null,n:0});
+let S=fresh(),P={},peer,K,V,sel={},M,host,nick,uid=(()=>{try{return sessionStorage.bsx||(sessionStorage.bsx=Math.random().toString(36).slice(2))}catch(x){return Math.random().toString(36).slice(2)}})();
+
+/* ---------- componentes ---------- */
+function picker(id){return `<input placeholder="Buscar Bugsnax..." oninput="flt('${id}',this.value)"><div class="list chips" id="L${id}">${lst(id,'')}</div><p class="m">Escolhido: <b id="S${id}">${e(sel[id]||'—')}</b></p>`}
+function lst(id,q){return N.filter(n=>nz(n).includes(nz(q))).map(n=>`<button class="chip ${sel[id]===n?'on':''}" onclick="pk('${id}',this.textContent)">${e(n)}</button>`).join('')||'<span class="m">Nenhum encontrado</span>'}
+function flt(id,q){$('#L'+id).innerHTML=lst(id,q)}
+function pk(id,n){sel[id]=n;flt(id,$('#L'+id).previousElementSibling.value);$('#S'+id).textContent=n||'—'}
+function acts(id){return `<div class="chips">${A.map(a=>`<button class="chip" onclick="$('#C${id}').value=this.textContent">${e(a)}</button>`).join('')}</div><input id="C${id}" placeholder="Ou escreva o que ele fez, em detalhes...">`}
+
+/* ---------- menu ---------- */
+function menu(){V='';app.innerHTML=`<h1>Bugsnax Detective</h1><p class="m">Complemento para jogar Bugsnax com todo mundo na mesma sala. O host joga, os detetives palpitam aqui.</p><button class="b" onclick="setup()">Sou o Host</button><button class="b g" onclick="join()">Sou Membro</button>`}
+
+/* ---------- HOST ---------- */
+function setup(){S=fresh();sel={};V='s';
+app.innerHTML=`<h2>Montar o caso</h2><div class="c"><h3>Quem é o criminoso?</h3>${picker('c')}</div><div class="c"><h3>O que ele fez?</h3>${acts('c')}</div><div class="c"><h3>Outros Bugsnax envolvidos</h3>${picker('x')}${acts('x')}<button class="b g" onclick="addX()">Adicionar envolvido</button><div id="xs"></div></div><button class="b" onclick="go()">${peer?'Iniciar nova partida':'Criar sala'}</button>`}
+function rx(){$('#xs').innerHTML=S.extras.map((x,i)=>`<div class="hint"><b>${e(x.b)}</b>: ${e(x.a)}<div class="row"><button class="chip" onclick="S.extras.splice(${i},1);rx()">remover</button></div></div>`).join('')}
+function addX(){const b=sel.x,a=$('#Cx').value.trim();if(!b||!a)return alert('Escolha o Bugsnax e o que ele fez.');S.extras.push({b,a});$('#Cx').value='';pk('x','');rx()}
+function go(){const c=sel.c,a=$('#Cc').value.trim();if(!c||!a)return alert('Escolha o criminoso e o que ele fez.');
+ S.culprit=c;S.action=a;if(peer){hostUI();bc();return}
+ if(!window.Peer)return alert('Não foi possível carregar o PeerJS. Verifique a internet.');mk(0)}
+function mk(t){const code=Array.from({length:4},()=>'ABCDEFGHJKLMNPQRSTUVWXYZ'[Math.random()*24|0]).join('');
+ peer=new Peer('bsxdet-'+code);
+ peer.on('open',()=>{K=code;hostUI();try{navigator.wakeLock?.request('screen').catch(()=>{})}catch(x){}});
+ peer.on('disconnected',()=>peer.reconnect());
+ peer.on('error',x=>{if(x.type=='unavailable-id'&&t<5){peer=null;mk(t+1)}else alert('Erro de conexão: '+x.type)});
+ peer.on('connection',c=>{c.on('data',d=>onH(c,d));c.on('close',()=>{const p=P[c.pid];if(p&&p.conn==c){p.on=0;hr()}})})}
+function hostUI(){V='h';
+app.innerHTML=`<h2>Sala aberta</h2><div class="c"><div class="m">Código da sala (os membros digitam este código)</div><div class="code">${K}</div><details><summary class="m">Ver solução do caso</summary><p><b>${e(S.culprit)}</b>: ${e(S.action)}${S.extras.map(x=>`<br>+ ${e(x.b)}: ${e(x.a)}`).join('')}</p></details><div class="m">Mantenha esta tela aberta durante o jogo.</div></div><div id="wn"></div><div class="c"><h3>Lançar dica</h3><input id="hi" placeholder="Escreva uma dica..."><button class="b" onclick="hint()">Lançar dica</button><div id="hs"></div></div><div class="c"><h3>Palpites</h3><div id="gs"></div></div><div class="c"><h3>Jogadores</h3><div id="pl" class="m"></div></div><button class="b g" onclick="confirm('Encerrar este caso e montar outro?')&&setup()">Nova partida</button>`;hr()}
+const chk=g=>{if(!g.b)return '<span class="m">Palpite livre: confira você mesmo.</span>';const hb=nz(g.b)==nz(S.culprit),ha=nz(g.a)==nz(S.action),ex=S.extras.some(x=>nz(x.b)==nz(g.b));return `<span class="m">${hb?'✔ é o criminoso':ex?'é um dos envolvidos':'✘ não é o criminoso'} · ${ha?'✔ ação igual':'ação diferente (confira)'}</span>`};
+function hr(){if(V!='h')return;
+ $('#pl').innerHTML=Object.values(P).map(p=>`${p.on?'🟢':'⚪'} ${e(p.name)}`).join('<br>')||'Ninguém entrou ainda.';
+ $('#hs').innerHTML=S.hints.map(h=>`<div class="hint">${e(h)}</div>`).join('');
+ $('#wn').innerHTML=S.winner?`<div class="c ok"><h3>🏆 ${e(S.winner.n)} venceu!</h3>${e(S.winner.g)}</div>`:'';
+ $('#gs').innerHTML=S.guesses.slice().reverse().map(g=>`<div class="hint"><b>${e(P[g.p]?.name)}</b> palpitou:<br>${gt(g)}<br>${chk(g)}<div class="row">${[['a','ACERTO'],['p','PRÓXIMO'],['e','ERRADO']].map(([k,l])=>`<button class="chip ${g.s==k?'on':''}" onclick="vd(${g.i},'${k}')">${l}</button>`).join('')}</div></div>`).join('')||'<span class="m">Nenhum palpite ainda.</span>'}
+function hint(){const v=$('#hi').value.trim();if(!v)return;S.hints.push(v);$('#hi').value='';bc();hr()}
+function vd(i,s){const g=S.guesses.find(g=>g.i==i);if(!g||S.winner)return;g.s=s;
+ if(s=='a'){S.winner={n:P[g.p]?.name||'?',g:gt(g,1)};bc()}else snd(g.p);hr()}
+function view(id){return{t:'st',h:S.hints,n:Object.values(P).map(p=>p.name),w:S.winner&&{n:S.winner.n,g:S.winner.g,sol:{c:S.culprit,a:S.action,x:S.extras}},g:S.guesses.filter(g=>g.p==id).map(g=>({i:g.i,b:g.b,a:g.a,s:g.s}))}}
+function snd(id){const p=P[id];if(p&&p.on&&p.conn.open)p.conn.send(view(id))}
+function bc(){Object.keys(P).forEach(snd)}
+function onH(c,d){
+ if(d.t=='join'){const nm=String(d.n||'').trim().slice(0,16)||'Detetive';
+  if(Object.entries(P).some(([k,p])=>k!=d.id&&nz(p.name)==nz(nm)))return c.send({t:'err',m:'Esse apelido já está em uso na sala.'});
+  P[d.id]={name:nm,conn:c,on:1};c.pid=d.id;bc();hr()}
+ if(d.t=='guess'&&c.pid&&!S.winner){const b=String(d.b||'').trim().slice(0,60),a=String(d.a||'').trim().slice(0,200);if(!a)return;
+  S.guesses.push({i:++S.n,p:c.pid,b,a,s:''});snd(c.pid);hr()}}
+
+/* ---------- MEMBRO ---------- */
+function join(){V='j';app.innerHTML=`<h2>Entrar na sala</h2><div class="c"><input id="jc" maxlength="4" placeholder="Código da sala" style="text-transform:uppercase"><input id="jn" maxlength="16" placeholder="Seu apelido"><button class="b" onclick="jn()">Entrar</button><div id="er" class="m no"></div></div><button class="b g" onclick="menu()">Voltar</button>`}
+function jn(){const k=$('#jc').value.trim().toUpperCase(),n=$('#jn').value.trim();
+ if(k.length<4||!n)return $('#er').textContent='Digite o código e um apelido.';
+ if(!window.Peer)return $('#er').textContent='Não foi possível carregar o PeerJS. Verifique a internet.';
+ $('#er').textContent='Conectando...';nick=n;peer&&peer.destroy();peer=new Peer();
+ peer.on('error',x=>{if(V=='j')$('#er').textContent=x.type=='peer-unavailable'?'Sala não encontrada. Confira o código.':'Erro de conexão: '+x.type});
+ peer.on('open',()=>{const c=peer.connect('bsxdet-'+k,{reliable:true});host=c;
+  c.on('open',()=>c.send({t:'join',n,id:uid}));
+  c.on('data',d=>{if(d.t=='err'){$('#er').textContent=d.m;c.close();return}M=d;mem()});
+  c.on('close',()=>{if(V=='m'){V='x';app.innerHTML='<h2>Conexão perdida</h2><p class="m">O host saiu ou a conexão caiu.</p><button class="b" onclick="location.reload()">Voltar ao menu</button>'}})})}
+function mem(){
+ if(V!='m'){V='m';sel.g='';app.innerHTML=`<div class="pin"><div class="c" id="mh"></div></div><div id="mw"></div><div class="c" id="gf"><h3>Dar um palpite</h3>${picker('g')}${acts('g')}<p class="m">Ou escreva um palpite livre (substitui o que está acima):</p><textarea id="Fg" rows="2" placeholder="Ex.: Foi o Bunger que sabotou a ponte porque..."></textarea><button class="b" onclick="sg()">Enviar palpite</button></div><div class="c"><h3>Meus palpites</h3><div id="mg"></div></div><div class="c m" id="mp"></div>`}
+ const d=M;
+ $('#mh').innerHTML='<h3>📌 Dicas do host</h3>'+(d.h.map(h=>`<div class="hint">${e(h)}</div>`).join('')||'<span class="m">Nenhuma dica ainda. Aguarde o host.</span>');
+ $('#mw').innerHTML=d.w?`<div class="c ok"><h2>🏆 ${d.w.n==nick?'Você venceu!':e(d.w.n)+' acertou!'}</h2><p>${e(d.w.g)}</p><div class="m">Solução: <b>${e(d.w.sol.c)}</b>: ${e(d.w.sol.a)}${d.w.sol.x.map(x=>`<br>+ ${e(x.b)}: ${e(x.a)}`).join('')}</div></div>`:'';
+ $('#gf').style.display=d.w?'none':'';
+ $('#mg').innerHTML=d.g.slice().reverse().map(g=>`<div class="hint">${gt(g)}<br>${{'':'<span class="m">Aguardando o host…</span>',a:'<b class="ok">ACERTO</b>',p:'<b class="nx">PRÓXIMO</b>',e:'<b class="no">ERRADO</b>'}[g.s]}</div>`).join('')||'<span class="m">Você ainda não deu palpites.</span>';
+ $('#mp').textContent='Na sala: '+d.n.join(', ')}
+function sg(){const f=$('#Fg').value.trim(),b=sel.g,a=$('#Cg').value.trim();
+ if(!f&&!(b&&a))return alert('Escolha um Bugsnax e o que ele fez, ou escreva um palpite livre.');
+ host.send(f?{t:'guess',b:'',a:f}:{t:'guess',b,a});$('#Fg').value='';$('#Cg').value='';pk('g','')}
+menu();
+</script>
+</body>
+</html>
